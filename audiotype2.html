@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcription Interface</title>
+    <style>
+        #transcription-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Audio Transcription Interface</h1>
+
+<audio controls id="audioPlayer" onended="handleAudioEnded()">
+    Your browser does not support the audio element.
+</audio>
+
+<div id="transcription-container">
+    <label for="transcription">Type the audio here:</label><br>
+    <textarea id="transcription" rows="4" cols="50" onkeydown="blockDelete(event)"></textarea>
+    <br>
+    <label for="speed">Select Speed:</label>
+    <select id="speed" onchange="changeSpeed()">
+        <option value="1">Normal</option>
+        <option value="0.75">Slow</option>
+        <option value="1.25">Fast</option>
+    </select>
+    <button type="button" onclick="submitTranscription()">Submit</button>
+</div>
+
+<script>
+    var transcriptFile;
+    var audioPlayer;
+    var defaultSpeed = 1;
+
+    const textFilePath = 'texttrans.php'; // Relative path to PHP script
+
+    async function blockDelete(event) {
+        // Block the delete key (keyCode 8) during typing
+        if (event.keyCode === 8) {
+            event.preventDefault();
+        }
+    }
+
+    function handleAudioEnded() {
+        // Enable the transcription textarea when audio ends
+        document.getElementById("transcription").disabled = false;
+    }
+
+    function changeSpeed() {
+        var speedSelect = document.getElementById("speed");
+        var selectedSpeed = speedSelect.options[speedSelect.selectedIndex].value;
+        audioPlayer.playbackRate = parseFloat(selectedSpeed);
+    }
+
+    async function submitTranscription() {
+        // Get the transcription text
+        var transcriptionText = document.getElementById("transcription").value + "\n";
+
+        // Save the transcription text using the server-side script
+        await appendToTextFile(transcriptionText, transcriptFile);
+
+        // Clear the transcription textarea
+        document.getElementById("transcription").value = "";
+
+        // Update the audio source to a new random file
+        updateAudioSource();
+    }
+
+    function updateAudioSource() {
+        var timestamp = new Date().getTime();
+        audioPlayer = document.getElementById("audioPlayer");
+        var randomIndex = Math.floor(Math.random() * 6433) + 1;
+        var audioFilePath = "clips/audio" + randomIndex + ".mp3";
+        transcriptFile = "audio" + randomIndex + "-" + timestamp + ".txt";
+
+        console.log("Attempting to load audio file:", audioFilePath);
+
+        audioPlayer.src = audioFilePath;
+        audioPlayer.playbackRate = defaultSpeed; // Set the default speed
+
+        // Disable the transcription textarea during audio playback
+        document.getElementById("transcription").disabled = true;
+
+        audioPlayer.addEventListener('error', function (e) {
+            console.error('Error loading audio:', e);
+        });
+
+        audioPlayer.load();
+        audioPlayer.play();
+    }
+
+    async function appendToTextFile(text, transcriptFile) {
+        try {
+            // Use the fixed file path for simplicity
+            const writable = await fetch(textFilePath, {
+                method: 'POST',
+                body: text,
+                headers: {
+                    'Content-Type': 'text/plain',
+                    'X-Transcript-File': transcriptFile,
+                },
+            });
+            console.log('Text appended to textfile');
+        } catch (err) {
+            console.error('Error appending text:', err);
+        }
+    }
+
+    // Automatically start playing audio when the page loads
+    window.addEventListener('load', updateAudioSource);
+</script>
+
+</body>
+</html>
